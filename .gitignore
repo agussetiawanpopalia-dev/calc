@@ -36,6 +36,12 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local sqlite database
+/data/
+
+# graphify knowledge-graph output (generated)
+/graphify-out/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

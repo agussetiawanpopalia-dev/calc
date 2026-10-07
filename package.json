@@ -3,24 +3,37 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "npm run db:migrate",
     "dev": "next dev",
+    "prebuild": "npm run db:migrate",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:promote-admin": "tsx scripts/promote-admin.ts",
+    "test:e2e": "node scripts/e2e.mjs",
+    "test:ui": "node scripts/visual-audit.mjs",
+    "test:shots": "node scripts/screenshot.mjs"
   },
   "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "drizzle-orm": "^0.45.3",
     "next": "16.3.8",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
+    "playwright": "^1.63.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }

@@ -1,26 +1,288 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ==========================================================================
+   iOS-first design tokens (applies the ios-glass-ui-designer skill):
+   SF Pro typography, system grays, restrained glass materials, 44pt targets.
+   ========================================================================== */
+
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+
+  /* System gray scale (light) — overridden for dark mode further down */
+  --color-canvas: #f2f2f7; /* systemGroupedBackground */
+  --color-card: #ffffff;
+  --color-ink: #1c1c1e;
+  --color-ink-2: #6e6e73;
+  --color-ink-3: #aeaeb2;
+  --color-hair: rgba(60, 60, 67, 0.14);
+
+  /* One accent (system blue) + semantic signals used sparingly */
+  --color-accent: #007aff;
+  --color-green: #34c759;
+  --color-orange: #ff9f0a;
+  --color-orange-ink: #c8730a; /* readable orange text on tinted chip (light) */
+  --color-red: #ff3b30;
+
+  --radius-card: 20px;
+  --radius-sheet: 28px;
+  --radius-chip: 999px;
+
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.04), 0 10px 30px rgba(0, 0, 0, 0.07);
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root {
+  color-scheme: light dark;
+
+  /* iOS material hierarchy — glass is used only where it explains depth/context */
+  --glass-thin: rgba(255, 255, 255, 0.6); /* toolbars, floating controls */
+  --glass-regular: rgba(255, 255, 255, 0.78); /* cards over content */
+  --glass-thick: rgba(255, 255, 255, 0.94); /* sheets, tab bar — max readability */
+  --glass-edge: rgba(255, 255, 255, 0.65);
+  --glass-blur: blur(24px) saturate(180%);
+  --glass-blur-strong: blur(40px) saturate(200%);
+  --tabbar-height: 64px;
+
+  /* Liquid-glass: a soft light reflection on glass + a quiet ambient backdrop
+     for the glass to refract. Kept low-alpha so text contrast is never hurt. */
+  --glass-sheen: rgba(255, 255, 255, 0.5);
+  --card-sheen: rgba(255, 255, 255, 0);
+  --app-backdrop:
+    radial-gradient(50% 42% at 8% 0%, rgba(0, 122, 255, 0.1), transparent 70%),
+    radial-gradient(46% 36% at 100% 6%, rgba(94, 92, 230, 0.09), transparent 72%),
+    radial-gradient(60% 44% at 50% 100%, rgba(255, 159, 10, 0.07), transparent 74%);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --color-canvas: #000000;
+    --color-card: #1c1c1e;
+    --color-ink: #f5f5f7;
+    --color-ink-2: #98989e;
+    --color-ink-3: #636366;
+    --color-hair: rgba(255, 255, 255, 0.14);
+    --color-accent: #0a84ff;
+    --color-green: #30d158;
+    --color-orange: #ff9f0a;
+    --color-orange-ink: #ff9f0a;
+    --color-red: #ff453a;
+
+    --glass-thin: rgba(28, 28, 30, 0.6);
+    --glass-regular: rgba(28, 28, 30, 0.76);
+    --glass-thick: rgba(28, 28, 30, 0.92);
+    --glass-edge: rgba(255, 255, 255, 0.13);
+    --glass-sheen: rgba(255, 255, 255, 0.14);
+    --card-sheen: rgba(255, 255, 255, 0.06);
+    --app-backdrop:
+      radial-gradient(52% 42% at 6% 0%, rgba(10, 132, 255, 0.2), transparent 70%),
+      radial-gradient(48% 38% at 100% 4%, rgba(94, 92, 230, 0.22), transparent 72%),
+      radial-gradient(60% 46% at 50% 100%, rgba(255, 159, 10, 0.09), transparent 76%);
+    --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.45);
   }
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-canvas);
+  background-image: var(--app-backdrop);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100dvh;
+  overscroll-behavior-y: none;
+}
+
+/* -------------------------------- materials -------------------------------- */
+
+.material {
+  --material-base: var(--glass-thin);
+  position: relative;
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  /* Liquid-glass light reflection layered over the translucent base. */
+  background-image: linear-gradient(135deg, var(--glass-sheen) 0%, rgba(255, 255, 255, 0) 46%);
+  background-color: var(--material-base);
+  box-shadow:
+    inset 0 0 0 0.5px var(--glass-edge),
+    inset 0 1px 0 0 var(--glass-edge),
+    var(--shadow-soft);
+}
+
+.material-regular {
+  --material-base: var(--glass-regular);
+}
+
+.material-thick {
+  --material-base: var(--glass-thick);
+  -webkit-backdrop-filter: var(--glass-blur-strong);
+  backdrop-filter: var(--glass-blur-strong);
+}
+
+/* Subtle micro-noise so large glass surfaces don't band */
+.material-thick::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+}
+
+.card {
+  background-color: var(--color-card);
+  background-image: linear-gradient(180deg, var(--card-sheen) 0%, rgba(255, 255, 255, 0) 26%);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+}
+
+/* Translucent top bar — content scrolls under it (iOS nav behaviour) */
+.material-bar {
+  background: color-mix(in srgb, var(--glass-thin) 86%, transparent);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: inset 0 -0.5px 0 var(--glass-edge);
+}
+
+.hairline {
+  box-shadow: inset 0 0 0 0.5px var(--color-hair);
+}
+
+/* --------------------------------- motion ---------------------------------- */
+
+.press {
+  transition:
+    transform 0.16s var(--ease-ios),
+    opacity 0.16s var(--ease-ios);
+  -webkit-tap-highlight-color: transparent;
+}
+.press:active {
+  transform: scale(0.97);
+  opacity: 0.9;
+}
+
+/* Liquid-glass hover lift — pointer devices only, animated on GPU-friendly props. */
+@media (hover: hover) and (pointer: fine) {
+  .card,
+  .material-regular {
+    transition:
+      transform 0.4s var(--ease-ios),
+      box-shadow 0.4s var(--ease-ios);
+  }
+  .card:hover,
+  .material-regular:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.14);
+  }
+}
+
+/* Respect reduced-motion preferences (accessibility). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-sheet {
+  animation: sheet-in 0.42s var(--ease-ios);
+}
+.animate-fade {
+  animation: fade-in 0.28s var(--ease-ios);
+}
+.animate-rise {
+  animation: rise-in 0.32s var(--ease-ios);
+}
+
+/* ------------------------------ safe areas --------------------------------- */
+
+.pb-safe {
+  padding-bottom: calc(env(safe-area-inset-bottom) + var(--tabbar-height) + 20px);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* ------------------------------- form controls ------------------------------ */
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+  color: inherit;
+}
+
+.input {
+  width: 100%;
+  background: var(--color-card);
+  border-radius: 14px;
+  padding: 13px 16px;
+  font-size: 17px;
+  box-shadow: inset 0 0 0 0.5px var(--color-hair);
+  transition: box-shadow 0.15s var(--ease-ios);
+}
+.input:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 0.5px var(--color-accent), 0 0 0 3px rgba(0, 122, 255, 0.18);
+}
+.input::placeholder {
+  color: var(--color-ink-3);
+}
+
+select.input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%238e8e93' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  padding-right: 40px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
