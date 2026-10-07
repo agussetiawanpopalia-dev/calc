@@ -33,7 +33,7 @@ export function AmountKeypad({
     <div className="flex flex-col items-center gap-4">
       <div className="flex h-16 w-full items-center justify-center">
         <span
-          className={`truncate text-[40px] font-semibold tabular-nums tracking-tight ${
+          className={`truncate text-[40px] font-semibold tabular-nums tracking-[-0.02em] ${
             digits === 0 ? "text-[var(--color-ink-3)]" : "text-[var(--color-ink)]"
           }`}
         >
@@ -47,7 +47,7 @@ export function AmountKeypad({
             key={key}
             type="button"
             onClick={() => push(key)}
-            className="press h-14 rounded-2xl bg-[var(--color-hair)] text-[24px] font-medium tabular-nums active:bg-[color-mix(in_srgb,var(--color-hair)_60%,transparent)]"
+            className="press h-14 rounded-2xl bg-[var(--color-hair)] text-[24px] font-medium tabular-nums tracking-tight active:bg-[color-mix(in_srgb,var(--color-hair)_60%,transparent)]"
           >
             {key}
           </button>

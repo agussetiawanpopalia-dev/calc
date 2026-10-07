@@ -100,7 +100,7 @@ function SheetPanel({
     >
       {/* grabber — drag anywhere on the header to dismiss */}
       <div
-        className="shrink-0 cursor-grab touch-none px-4 pt-3 pb-1 active:cursor-grabbing"
+        className="shrink-0 cursor-grab touch-none px-5 pt-3 pb-2 active:cursor-grabbing"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -108,7 +108,7 @@ function SheetPanel({
       >
         <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-[var(--color-hair)]" />
         {title && (
-          <div className="flex items-center justify-between pb-1">
+          <div className="flex items-center justify-between pb-2">
             <h2 className="text-[17px] font-semibold">{title}</h2>
             <button
               type="button"
@@ -121,7 +121,7 @@ function SheetPanel({
           </div>
         )}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-2 pb-[calc(env(safe-area-inset-bottom) + 24px)]">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-3 pb-[calc(env(safe-area-inset-bottom) + 24px)]">
         {children}
       </div>
     </div>

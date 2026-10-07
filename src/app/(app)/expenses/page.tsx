@@ -6,8 +6,7 @@ import type { Backbone, ExpenseItem, Preset } from "@/lib/types";
 import { useI18n } from "@/components/i18n-provider";
 import { PageHeader } from "@/components/page-header";
 import { MonthNav } from "@/components/month-nav";
-import { Button, Card, Chip, EmptyState, Spinner } from "@/components/ui";
-import { Sheet } from "@/components/sheet";
+import { Card, Chip, EmptyState, Spinner } from "@/components/ui";
 import { PlusIcon, TrashIcon } from "@/components/icons";
 import { AddExpenseSheet } from "@/components/add-expense-sheet";
 
@@ -53,10 +52,10 @@ export default function ExpensesPage() {
     <>
       <PageHeader title={t("exp.title")} right={<MonthNav month={month} onChange={setMonth} />} />
 
-      <Card className="mb-4 flex items-center justify-between p-4">
+      <Card className="mb-4 flex items-center justify-between p-5">
         <div>
           <p className="text-[13px] font-semibold text-[var(--color-ink-2)] uppercase">{monthLabel(month)}</p>
-          <p className="text-[28px] leading-tight font-bold tabular-nums">{money(list.data?.total ?? 0)}</p>
+          <p className="text-[28px] leading-tight font-bold tabular-nums tracking-[-0.02em]">{money(list.data?.total ?? 0)}</p>
         </div>
         <button
           type="button"
@@ -88,7 +87,7 @@ export default function ExpensesPage() {
               </div>
               <Card className="divide-y divide-[var(--color-hair)]">
                 {group.items.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                  <div key={item.id} className="flex items-center justify-between gap-3 px-5 py-3.5">
                     <div className="min-w-0">
                       <p className="truncate text-[16px] font-medium">{item.name}</p>
                       <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[13px] text-[var(--color-ink-2)]">
@@ -97,7 +96,7 @@ export default function ExpensesPage() {
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
-                      <span className="text-[16px] font-semibold tabular-nums">{money(item.amount)}</span>
+                      <span className="text-[17px] font-semibold tabular-nums tracking-tight">{money(item.amount)}</span>
                       <button
                         type="button"
                         aria-label={t("common.delete")}

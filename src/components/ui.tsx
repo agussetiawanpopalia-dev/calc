@@ -18,7 +18,9 @@ export function Card({
       <div className={`material material-${glass} rounded-[20px] ${className}`}>{children}</div>
     );
   }
-  return <div className={`card ${className}`}>{children}</div>;
+  return (
+    <div className={`material material-regular rounded-[20px] ${className}`}>{children}</div>
+  );
 }
 
 export function SectionTitle({ children, action }: { children: ReactNode; action?: ReactNode }) {
@@ -43,7 +45,7 @@ export function Button({ variant = "primary", loading, full, className = "", chi
     "press inline-flex items-center justify-center gap-2 rounded-full px-6 min-h-[50px] text-[17px] font-semibold transition disabled:opacity-45 disabled:pointer-events-none";
   const variants: Record<string, string> = {
     primary: "bg-[var(--color-accent)] text-white shadow-[0_6px_20px_rgba(0,122,255,0.28)]",
-    secondary: "bg-[var(--color-card)] text-[var(--color-accent)] hairline",
+    secondary: "material text-[var(--color-accent)]",
     quiet: "bg-transparent text-[var(--color-accent)]",
     danger: "bg-[var(--color-red)] text-white",
   };
@@ -79,7 +81,7 @@ export function IconButton({
 export function Spinner({ className = "" }: { className?: string }) {
   return (
     <span
-      className={`inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent ${className}`}
+      className={`inline-block h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent ${className}`}
     />
   );
 }
@@ -101,7 +103,7 @@ export function Field({
     <label className="block">
       <span className="mb-1.5 block px-1 text-[15px] font-medium text-[var(--color-ink-2)]">{label}</span>
       {children}
-      {hint && !error && <span className="mt-1 block px-1 text-[13px] text-[var(--color-ink-3)]">{hint}</span>}
+      {hint && !error && <span className="mt-1 block px-1 text-[13px] text-[var(--color-ink-2)]">{hint}</span>}
       {error && <span className="mt-1 block px-1 text-[13px] text-[var(--color-red)]">{error}</span>}
     </label>
   );
@@ -122,8 +124,8 @@ export function Row({
   className?: string;
 }) {
   return (
-    <div className={`flex min-h-[52px] flex-wrap items-center justify-between gap-3 px-4 py-2.5 ${className}`}>
-      <span className="text-[16px] text-[var(--color-ink)]">{label}</span>
+    <div className={`flex min-h-[52px] flex-wrap items-center justify-between gap-3 px-5 py-3 ${className}`}>
+      <span className="text-[17px] text-[var(--color-ink)]">{label}</span>
       <div className="flex items-center gap-2">{children}</div>
     </div>
   );
@@ -183,7 +185,7 @@ export function Segmented<T extends string>({
           onClick={() => onChange(option.value)}
           className={`flex-1 rounded-[8px] px-3 py-1.5 text-[14px] font-semibold transition ${
             value === option.value
-              ? "bg-[var(--color-card)] text-[var(--color-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]"
+              ? "bg-[var(--glass-thin)] text-[var(--color-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]"
               : "text-[var(--color-ink-2)]"
           }`}
         >
@@ -196,7 +198,7 @@ export function Segmented<T extends string>({
 
 export function EmptyState({ title, hint }: { title: string; hint?: string }) {
   return (
-    <div className="card px-6 py-10 text-center">
+    <div className="material material-regular rounded-[20px] px-6 py-10 text-center">
       <p className="text-[16px] font-medium text-[var(--color-ink)]">{title}</p>
       {hint && <p className="mt-1 text-[14px] text-[var(--color-ink-2)]">{hint}</p>}
     </div>

@@ -14,19 +14,23 @@ export function AddExpenseSheet({
   categories,
   defaultDate,
   onSaved,
+  defaultCategoryId,
+  defaultIsFood,
 }: {
   open: boolean;
   onClose: () => void;
   categories: Array<{ id: number; name: string }>;
   defaultDate: string;
   onSaved: () => void;
+  defaultCategoryId?: number | "";
+  defaultIsFood?: boolean;
 }) {
   const { t } = useI18n();
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(defaultDate);
-  const [categoryId, setCategoryId] = useState<number | "">("");
-  const [isFood, setIsFood] = useState(false);
+  const [categoryId, setCategoryId] = useState<number | "">(defaultCategoryId ?? "");
+  const [isFood, setIsFood] = useState(defaultIsFood ?? false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -49,7 +53,7 @@ export function AddExpenseSheet({
       });
       setName("");
       setAmount("");
-      setIsFood(false);
+      setIsFood(defaultIsFood ?? false);
       onSaved();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("common.error"));

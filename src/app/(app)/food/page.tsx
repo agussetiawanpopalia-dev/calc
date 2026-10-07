@@ -96,7 +96,7 @@ export default function FoodPage() {
                 tone={monthSpentPct > 1 ? "red" : monthSpentPct > 0.9 ? "orange" : "green"}
               />
             </div>
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--color-canvas)] px-3 py-2.5">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--color-hair)] px-4 py-2.5">
               <span className="text-[14px] font-medium tabular-nums">
                 {t("food.availableToday", { spent: money(food.todaySpent), available: money(food.availableToday) })}
               </span>
@@ -105,7 +105,7 @@ export default function FoodPage() {
           </Card>
 
           {/* daily rule + overspend (requirement 6: automatic, no manual posting) */}
-          <Card glass="regular" className="p-4">
+          <Card glass="regular" className="p-5">
             <h2 className="text-[16px] font-semibold">{t("food.ruleTitle")}</h2>
             {food.budget === 0 ? (
               <p className="mt-1.5 text-[15px] text-[var(--color-ink-2)]">
@@ -139,7 +139,7 @@ export default function FoodPage() {
           {/* daily breakdown */}
           <section>
             <SectionTitle>{t("food.breakdown")}</SectionTitle>
-            <Card className="p-3">
+            <Card className="p-4">
               <div className="grid grid-cols-7 gap-1.5">
                 {food.days.map((day) => {
                   const selected = selectedDay === day.date;
@@ -157,7 +157,7 @@ export default function FoodPage() {
                             ? "bg-[color-mix(in_srgb,var(--color-orange)_22%,transparent)] text-[#b26a00]"
                             : status === "ok"
                               ? "bg-[color-mix(in_srgb,var(--color-green)_16%,transparent)] text-[var(--color-green)]"
-                              : "bg-[var(--color-canvas)] text-[var(--color-ink-3)]"
+                              : "bg-[var(--color-hair)] text-[var(--color-ink-3)]"
                       }`}
                       aria-label={`${dayLabel(day.date)}: ${money(day.spent)}`}
                     >
@@ -169,7 +169,7 @@ export default function FoodPage() {
                   );
                 })}
               </div>
-              <div className="mt-3 flex flex-wrap items-center gap-3 px-1 text-[12px] text-[var(--color-ink-2)]">
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-[12px] text-[var(--color-ink-2)]">
                 <span className="flex items-center gap-1">
                   <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-green)]" /> ok
                 </span>
@@ -205,7 +205,7 @@ export default function FoodPage() {
             ) : (
               <Card className="divide-y divide-[var(--color-hair)]">
                 {visibleEntries.map((entry) => (
-                  <div key={entry.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                  <div key={entry.id} className="flex items-center justify-between gap-3 px-5 py-3.5">
                     <div className="min-w-0">
                       <p className="truncate text-[16px] font-medium">{entry.name}</p>
                       <p className="truncate text-[13px] text-[var(--color-ink-2)]">

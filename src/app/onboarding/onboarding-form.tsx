@@ -176,7 +176,7 @@ export function OnboardingForm({ initialName, initialPhone }: { initialName: str
                   key={preset.id}
                   type="button"
                   onClick={() => setPickedPresetId(preset.id)}
-                  className={`card press w-full p-4 text-left transition ${
+                  className={`material material-regular rounded-[20px] press w-full p-4 text-left transition ${
                     selected ? "ring-[2.5px] ring-[var(--color-accent)]" : ""
                   }`}
                 >
@@ -205,7 +205,7 @@ export function OnboardingForm({ initialName, initialPhone }: { initialName: str
             <p className="px-1 text-[13px] text-[var(--color-ink-2)]">{t("setup.presetOverspend")}</p>
           </div>
         ) : (
-          <Card className="mt-4 p-4">
+          <Card className="mt-4 p-5">
             <h3 className="mb-3 text-[17px] font-semibold">{t("setup.customTitle")}</h3>
 
             <div className="flex flex-col gap-3">

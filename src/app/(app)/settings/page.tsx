@@ -89,7 +89,7 @@ export default function SettingsPage() {
 
       <div className="flex flex-col gap-5">
         {user?.role === "admin" && (
-          <Card className="p-4 text-[14px] text-[var(--color-ink-2)]">{t("set.adminNote")}</Card>
+          <Card className="p-5 text-[14px] text-[var(--color-ink-2)]">{t("set.adminNote")}</Card>
         )}
 
         <section>
@@ -142,9 +142,9 @@ export default function SettingsPage() {
                   placeholder="40000"
                   className="input !w-[160px] text-right tabular-nums"
                 />
-                <span className="text-[12px] text-[var(--color-ink-3)]">
-                  {t("set.monthlyApprox", { amount: money(monthlyFoodApprox) })}
-                </span>
+                  <span className="text-[13px] text-[var(--color-ink-2)] tabular-nums">
+                    {t("set.monthlyApprox", { amount: money(monthlyFoodApprox) })}
+                  </span>
               </div>
             </Row>
           </Card>
@@ -154,9 +154,8 @@ export default function SettingsPage() {
 
         <div className="flex flex-col gap-3">
           <Button full loading={saving} onClick={() => void save()}>
-            {saving ? t("common.saving") : t("set.save")}
+            {saved ? `✓ ${t("set.saved")}` : saving ? t("common.saving") : t("set.save")}
           </Button>
-          {saved && <p className="text-center text-[14px] text-[var(--color-green)]">✓ {t("set.saved")}</p>}
           <Button variant="secondary" full loading={signingOut} onClick={() => void signOut()}>
             {signingOut ? t("set.signingOut") : t("set.signOut")}
           </Button>

@@ -13,6 +13,11 @@ export class ApiError extends Error {
 
 type ApiOptions = { method?: string; body?: unknown };
 
+/** Dispatch a soft refresh for every active useApi hook (e.g. after a global add). */
+export function refreshApi() {
+  window.dispatchEvent(new Event("money-api-refresh"));
+}
+
 /** Fetch wrapper speaking the { ok, ... } / { ok:false, error } envelope. */
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const res = await fetch(path, {
@@ -52,8 +57,11 @@ export function useApi<T>(path: string | null) {
 
   useEffect(() => {
     alive.current = true;
+    const onRefresh = () => setNonce((n) => n + 1);
+    window.addEventListener("money-api-refresh", onRefresh);
     return () => {
       alive.current = false;
+      window.removeEventListener("money-api-refresh", onRefresh);
     };
   }, []);
 

@@ -48,10 +48,7 @@
      for the glass to refract. Kept low-alpha so text contrast is never hurt. */
   --glass-sheen: rgba(255, 255, 255, 0.5);
   --card-sheen: rgba(255, 255, 255, 0);
-  --app-backdrop:
-    radial-gradient(50% 42% at 8% 0%, rgba(0, 122, 255, 0.1), transparent 70%),
-    radial-gradient(46% 36% at 100% 6%, rgba(94, 92, 230, 0.09), transparent 72%),
-    radial-gradient(60% 44% at 50% 100%, rgba(255, 159, 10, 0.07), transparent 74%);
+  --app-backdrop: url("/bg.jpg");
 }
 
 @media (prefers-color-scheme: dark) {
@@ -74,10 +71,7 @@
     --glass-edge: rgba(255, 255, 255, 0.13);
     --glass-sheen: rgba(255, 255, 255, 0.14);
     --card-sheen: rgba(255, 255, 255, 0.06);
-    --app-backdrop:
-      radial-gradient(52% 42% at 6% 0%, rgba(10, 132, 255, 0.2), transparent 70%),
-      radial-gradient(48% 38% at 100% 4%, rgba(94, 92, 230, 0.22), transparent 72%),
-      radial-gradient(60% 46% at 50% 100%, rgba(255, 159, 10, 0.09), transparent 76%);
+    --app-backdrop: url("/bg.jpg");
     --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.45);
   }
 }
@@ -89,6 +83,8 @@ html {
 body {
   background-color: var(--color-canvas);
   background-image: var(--app-backdrop);
+  background-position: center;
+  background-size: cover;
   background-repeat: no-repeat;
   background-attachment: fixed;
   color: var(--color-ink);
@@ -254,7 +250,9 @@ button {
 
 .input {
   width: 100%;
-  background: var(--color-card);
+  background: var(--glass-thin);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
   border-radius: 14px;
   padding: 13px 16px;
   font-size: 17px;

@@ -149,7 +149,7 @@ export default function BudgetPage() {
             {categories.map((category) => {
               const pct = category.allocated > 0 ? category.spent / category.allocated : 0;
               return (
-                <div key={category.id} className="px-4 py-3.5">
+                <div key={category.id} className="px-5 py-3.5">
                   <div className="flex items-baseline justify-between gap-3">
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
                       <span className="text-[16px] font-medium">{category.name}</span>
@@ -182,7 +182,7 @@ export default function BudgetPage() {
             <p className="mb-3 px-1 text-[14px] text-[var(--color-ink-2)]">{t("budget.switchHint")}</p>
             <div className="flex flex-col gap-3">
               {(budget.data?.presets ?? []).map((preset) => (
-                <Card key={preset.id} className="p-4">
+                <Card key={preset.id} className="p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h3 className="text-[16px] font-semibold">{preset.name}</h3>
@@ -216,15 +216,15 @@ export default function BudgetPage() {
         </div>
       ) : (
         /* ------------------------------ edit mode ------------------------------ */
-        <Card className="p-4">
-          <h3 className="mb-3 text-[17px] font-semibold">{backbone.name}</h3>
+        <Card className="p-5">
+          <h3 className="mb-4 text-[17px] font-semibold">{backbone.name}</h3>
           <div className="flex flex-col gap-3">
             <Field label={t("setup.backboneName")}>
               <TextInput value={backboneName} onChange={(e) => setBackboneName(e.target.value)} />
             </Field>
 
             {rows.map((row, index) => (
-              <div key={row.uid} className="rounded-2xl bg-[var(--color-canvas)] p-3">
+              <div key={row.uid} className="rounded-2xl bg-[var(--color-hair)] p-4">
                 <div className="flex items-center gap-2">
                   <TextInput
                     value={row.name}
@@ -303,7 +303,7 @@ export default function BudgetPage() {
 
             <button
               type="button"
-              className="press flex items-center justify-center gap-1.5 rounded-2xl border border-dashed border-[var(--color-hair)] py-3 text-[15px] font-semibold text-[var(--color-accent)]"
+              className="press flex items-center justify-center gap-1.5 rounded-2xl border border-dashed border-[var(--color-hair)] py-3.5 text-[15px] font-semibold text-[var(--color-accent)]"
               onClick={() =>
                 setRows((current) => [
                   ...current,
@@ -315,7 +315,7 @@ export default function BudgetPage() {
             </button>
 
             <div
-              className={`flex items-center justify-between rounded-xl px-3 py-2 text-[14px] font-semibold ${
+              className={`flex items-center justify-between rounded-xl px-4 py-2.5 text-[14px] font-semibold ${
                 totalOk
                   ? "bg-[color-mix(in_srgb,var(--color-green)_14%,transparent)] text-[var(--color-green)]"
                   : "bg-[color-mix(in_srgb,var(--color-orange)_16%,transparent)] text-[#b26a00]"
