@@ -6,7 +6,8 @@ import { HttpError, type SessionUser } from "./auth";
 export function publicUser(user: SessionUser) {
   return {
     id: user.id,
-    phone: user.phone,
+    email: user.email,
+    phone: user.phone ?? null,
     displayName: user.displayName,
     role: user.role,
     locale: user.locale,

@@ -26,13 +26,13 @@ function toBp(percent: string): number {
   return Math.round(value * 100);
 }
 
-export function OnboardingForm({ initialName, initialPhone }: { initialName: string; initialPhone: string }) {
+export function OnboardingForm({ initialName, initialEmail }: { initialName: string; initialEmail: string }) {
   const { t, locale, setLocale, money } = useI18n();
   const router = useRouter();
   const presets = useApi<{ presets: Preset[] }>("/api/presets");
 
   const [name, setName] = useState(initialName);
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialEmail);
   const [income, setIncome] = useState("");
   const [dailyFoodBudget, setDailyFoodBudget] = useState("");
   const [mode, setMode] = useState<"preset" | "custom">("preset");
@@ -355,7 +355,7 @@ export function OnboardingForm({ initialName, initialPhone }: { initialName: str
           {loading ? t("setup.creating") : t("setup.create")}
         </Button>
         <p className="mt-3 text-center text-[13px] text-[var(--color-ink-3)]">
-          {initialPhone} · {income ? money(Number(income.replace(/\D/g, "")) || 0) : t("setup.income")}
+          {initialEmail} · {income ? money(Number(income.replace(/\D/g, "")) || 0) : t("setup.income")}
         </p>
       </div>
     </main>

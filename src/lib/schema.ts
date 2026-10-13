@@ -8,8 +8,8 @@ const now = () => sql`datetime('now')`;
 
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  phone: text("phone").notNull().unique(),
-  email: text("email").unique(),
+  email: text("email").notNull().unique(),
+  phone: text("phone").unique(),
   displayName: text("display_name"),
   role: text("role").notNull().default("user"),
   status: text("status").notNull().default("active"),
@@ -24,7 +24,7 @@ export const otpCodes = sqliteTable(
   "otp_codes",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
-    phone: text("phone").notNull(),
+    email: text("email").notNull(),
     code: text("code").notNull(),
     attempts: integer("attempts").notNull().default(0),
     maxAttempts: integer("max_attempts").notNull().default(5),
@@ -32,7 +32,7 @@ export const otpCodes = sqliteTable(
     consumedAt: text("consumed_at"),
     createdAt: text("created_at").notNull().default(now()),
   },
-  (t) => [index("idx_otp_phone_created").on(t.phone, t.createdAt)],
+  (t) => [index("idx_otp_email_created").on(t.email, t.createdAt)],
 );
 
 export const sessions = sqliteTable(

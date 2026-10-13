@@ -8,8 +8,8 @@ import { Button, Card, Segmented, TextInput } from "@/components/ui";
 
 type RequestOtpResponse = {
   ok: boolean;
-  phone: string;
-  delivery: "dev" | "sms";
+  email: string;
+  delivery: "dev" | "email";
   expiresInSeconds: number;
   devOtp?: string;
 };
@@ -20,8 +20,8 @@ export function LoginForm() {
   const { t, locale, setLocale } = useI18n();
   const router = useRouter();
 
-  const [step, setStep] = useState<"phone" | "code">("phone");
-  const [phone, setPhone] = useState("");
+  const [step, setStep] = useState<"email" | "code">("email");
+  const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [devOtp, setDevOtp] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,11 +34,11 @@ export function LoginForm() {
     return () => clearTimeout(timer);
   }, [cooldown]);
 
-  const submitPhone = async () => {
+  const submitEmail = async () => {
     setLoading(true);
     setError(null);
     try {
-      const result = await api<RequestOtpResponse>("/api/auth/request-otp", { method: "POST", body: { phone } });
+      const result = await api<RequestOtpResponse>("/api/auth/request-otp", { method: "POST", body: { email } });
       setDevOtp(result.devOtp ?? null);
       setCooldown(60);
       setStep("code");
@@ -54,7 +54,7 @@ export function LoginForm() {
     setLoading(true);
     setError(null);
     try {
-      const result = await api<VerifyResponse>("/api/auth/verify-otp", { method: "POST", body: { phone, code } });
+      const result = await api<VerifyResponse>("/api/auth/verify-otp", { method: "POST", body: { email, code } });
       router.push(result.mustOnboard ? "/onboarding" : "/dashboard");
       router.refresh();
     } catch (err) {
@@ -71,10 +71,10 @@ export function LoginForm() {
             {t("app.name")}
           </p>
           <h1 className="mt-2 text-[30px] leading-tight font-bold tracking-[-0.02em]">
-            {step === "phone" ? t("login.title") : t("login.codeTitle")}
+            {step === "email" ? t("login.title") : t("login.codeTitle")}
           </h1>
           <p className="mt-2 text-[16px] text-[var(--color-ink-2)]">
-            {step === "phone" ? t("login.subtitle") : t("login.codeSent", { phone })}
+            {step === "email" ? t("login.subtitle") : t("login.codeSent", { contact: email })}
           </p>
         </div>
         <Segmented
@@ -88,25 +88,26 @@ export function LoginForm() {
       </div>
 
       <Card className="p-5" glass="regular">
-        {step === "phone" ? (
+        {step === "email" ? (
           <form
             className="flex flex-col gap-4"
             onSubmit={(e) => {
               e.preventDefault();
-              void submitPhone();
+              void submitEmail();
             }}
           >
             <label className="block">
               <span className="mb-1.5 block px-1 text-[15px] font-medium text-[var(--color-ink-2)]">
-                {t("login.phone")}
+                {t("login.email")}
               </span>
               <TextInput
                 autoFocus
-                inputMode="tel"
-                autoComplete="tel"
-                placeholder={t("login.phonePlaceholder")}
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder={t("login.emailPlaceholder")}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </label>
             {error && <p className="px-1 text-[14px] text-[var(--color-red)]">{error}</p>}
@@ -146,7 +147,7 @@ export function LoginForm() {
                 type="button"
                 className="press text-[15px] font-medium text-[var(--color-ink-2)]"
                 onClick={() => {
-                  setStep("phone");
+                  setStep("email");
                   setCode("");
                   setError(null);
                 }}
@@ -157,7 +158,7 @@ export function LoginForm() {
                 type="button"
                 className="press text-[15px] font-medium text-[var(--color-accent)] disabled:opacity-40"
                 disabled={cooldown > 0}
-                onClick={() => void submitPhone()}
+                onClick={() => void submitEmail()}
               >
                 {cooldown > 0 ? t("login.resendIn", { s: cooldown }) : t("login.resend")}
               </button>

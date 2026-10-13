@@ -1,19 +1,17 @@
 import { z } from "zod";
 import { cookies } from "next/headers";
 import { handle, ok, readJson, publicUser } from "@/lib/api";
-import { normalizePhone } from "@/lib/phone";
-import { verifyOtp, createSession, attachSessionCookie, HttpError } from "@/lib/auth";
+import { verifyOtp, createSession, attachSessionCookie } from "@/lib/auth";
 
 const schema = z.object({
-  phone: z.string().min(1).max(30),
+  email: z.string().email("Enter a valid email address.").max(120),
   code: z.string().regex(/^\d{6}$/, "Enter the 6-digit code."),
 });
 
 export async function POST(req: Request) {
   return handle(async () => {
-    const { phone, code } = await readJson(req, schema);
-    const normalized = normalizePhone(phone);
-    if (!normalized) throw new HttpError(400, "That phone number does not look valid.");
+    const { email, code } = await readJson(req, schema);
+    const normalized = email.toLowerCase().trim();
 
     const user = await verifyOtp(normalized, code);
     const token = await createSession(user.id, req.headers.get("user-agent"));

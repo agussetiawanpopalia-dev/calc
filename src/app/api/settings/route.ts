@@ -15,6 +15,7 @@ export async function GET() {
 
 const schema = z.object({
   displayName: z.string().trim().min(1).max(60).optional(),
+  phone: z.string().trim().max(30).optional().nullable(),
   locale: z.enum(["en", "id"]).optional(),
   monthlyIncome: z.number().int().min(0).max(10_000_000_000).optional(),
   dailyFoodBudget: z.number().int().min(0).max(10_000_000).optional(),
@@ -26,11 +27,12 @@ export async function PUT(req: Request) {
     const user = await requireAuthedUser();
     const db = await getDb();
 
-    if (body.displayName !== undefined || body.locale !== undefined) {
+    if (body.displayName !== undefined || body.locale !== undefined || body.phone !== undefined) {
       await db
         .update(users)
         .set({
           ...(body.displayName !== undefined ? { displayName: body.displayName } : {}),
+          ...(body.phone !== undefined ? { phone: body.phone || null } : {}),
           ...(body.locale !== undefined ? { locale: body.locale } : {}),
           updatedAt: sql`datetime('now')`,
         })

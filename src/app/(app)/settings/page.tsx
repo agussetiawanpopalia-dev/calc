@@ -15,6 +15,7 @@ export default function SettingsPage() {
   const user = me.data?.user;
 
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [income, setIncome] = useState("");
   const [dailyFood, setDailyFood] = useState("");
   const [saving, setSaving] = useState(false);
@@ -28,6 +29,7 @@ export default function SettingsPage() {
   if (user && user !== syncedUser) {
     setSyncedUser(user);
     setName(user.displayName ?? "");
+    setPhone(user.phone ?? "");
     setIncome(user.settings.monthlyIncome ? String(user.settings.monthlyIncome) : "");
     setDailyFood(user.settings.dailyFoodBudget ? String(user.settings.dailyFoodBudget) : "");
   }
@@ -44,6 +46,7 @@ export default function SettingsPage() {
         method: "PUT",
         body: {
           displayName: name.trim() || undefined,
+          phone: phone.trim() || undefined,
           locale,
           monthlyIncome: Number(income.replace(/\D/g, "")) || 0,
           dailyFoodBudget: dailyFoodValue,
@@ -103,8 +106,18 @@ export default function SettingsPage() {
                 className="input !w-[180px] text-right"
               />
             </Row>
+            <Row label={t("set.email")}>
+              <span className="text-[16px] text-[var(--color-ink-2)]">{user?.email}</span>
+            </Row>
             <Row label={t("set.phone")}>
-              <span className="text-[16px] text-[var(--color-ink-2)] tabular-nums">{user?.phone}</span>
+              <TextInput
+                inputMode="tel"
+                autoComplete="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder={t("set.phonePlaceholder")}
+                className="input !w-[180px] text-right"
+              />
             </Row>
             <Row label={t("set.language")}>
               <div className="w-[176px]">

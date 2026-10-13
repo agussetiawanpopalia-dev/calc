@@ -118,12 +118,12 @@ export type RequestOtpResult = {
   devOtp?: string;
 };
 
-export async function requestOtp(phone: string): Promise<RequestOtpResult> {
+export async function requestOtp(email: string): Promise<RequestOtpResult> {
   const db = await getDb();
   const latest = await db
     .select({ createdAt: otpCodes.createdAt })
     .from(otpCodes)
-    .where(eq(otpCodes.phone, phone))
+    .where(eq(otpCodes.email, email))
     .orderBy(desc(otpCodes.createdAt))
     .limit(1)
     .get();
@@ -139,26 +139,20 @@ export async function requestOtp(phone: string): Promise<RequestOtpResult> {
   await db
     .insert(otpCodes)
     .values({
-      phone,
+      email,
       code,
       expiresAt: sql`datetime('now', ${`+${OTP_MINUTES} minutes`})`,
     })
     .run();
 
   // Audit trail (backlog admin dashboard reads these later).
-  console.log(`[otp] ${phone} -> ${code} (expires in ${OTP_MINUTES}m)`);
+  console.log(`[otp] ${email} -> ${code} (expires in ${OTP_MINUTES}m)`);
 
   if (OTP_MODE === "dev") {
     return { delivery: "dev", expiresInSeconds: OTP_MINUTES * 60, devOtp: code };
   }
 
   if (OTP_MODE === "email") {
-    // Look up user by phone to get their email
-    const user = await db.select({ email: users.email }).from(users).where(eq(users.phone, phone)).limit(1).get();
-    if (!user?.email) {
-      throw new HttpError(400, "No email on file for this account. Complete onboarding first.");
-    }
-
     if (!RESEND_API_KEY) {
       throw new HttpError(500, "Email delivery not configured (missing RESEND_API_KEY).");
     }
@@ -168,7 +162,7 @@ export async function requestOtp(phone: string): Promise<RequestOtpResult> {
 
     const { error } = await resend.emails.send({
       from: RESEND_FROM_EMAIL,
-      to: user.email,
+      to: email,
       subject: "Your MoneyCalc sign-in code",
       html: `<!DOCTYPE html>
 <html>
@@ -198,17 +192,17 @@ export async function requestOtp(phone: string): Promise<RequestOtpResult> {
   throw new HttpError(501, "OTP delivery not configured. Set OTP_MODE=dev or OTP_MODE=email.");
 }
 
-export async function verifyOtp(phone: string, code: string): Promise<SessionUser> {
+export async function verifyOtp(email: string, code: string): Promise<SessionUser> {
   const db = await getDb();
   const otp = await db
     .select()
     .from(otpCodes)
-    .where(and(eq(otpCodes.phone, phone), isNull(otpCodes.consumedAt)))
+    .where(and(eq(otpCodes.email, email), isNull(otpCodes.consumedAt)))
     .orderBy(desc(otpCodes.createdAt))
     .limit(1)
     .get();
 
-  if (!otp) throw new HttpError(400, "No active code for this number. Request a new one.");
+  if (!otp) throw new HttpError(400, "No active code for this email. Request a new one.");
   if (otp.expiresAt <= nowSql()) throw new HttpError(400, "That code has expired. Request a new one.");
   if (otp.attempts >= otp.maxAttempts) throw new HttpError(400, "Too many attempts. Request a new code.");
 
@@ -223,16 +217,16 @@ export async function verifyOtp(phone: string, code: string): Promise<SessionUse
   }
 
   await db.update(otpCodes).set({ consumedAt: sql`datetime('now')` }).where(eq(otpCodes.id, otp.id)).run();
-  return upsertUserByPhone(phone);
+  return upsertUserByEmail(email);
 }
 
-/** Registration == first login with a phone number. Creates the user row if new. */
-export async function upsertUserByPhone(phone: string): Promise<SessionUser> {
+/** Registration == first login with an email. Creates the user row if new. */
+export async function upsertUserByEmail(email: string): Promise<SessionUser> {
   const db = await getDb();
-  let user = await db.select().from(users).where(eq(users.phone, phone)).limit(1).get();
+  let user = await db.select().from(users).where(eq(users.email, email)).limit(1).get();
 
   if (!user) {
-    const info = await db.insert(users).values({ phone, lastLoginAt: sql`datetime('now')` }).run();
+    const info = await db.insert(users).values({ email, lastLoginAt: sql`datetime('now')` }).run();
     user = (await db
       .select()
       .from(users)

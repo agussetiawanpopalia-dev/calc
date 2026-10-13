@@ -4,7 +4,8 @@ export type CategoryKind = "needs" | "wants" | "savings" | "debt" | "other";
 
 export type PublicUser = {
   id: number;
-  phone: string;
+  email: string;
+  phone: string | null;
   displayName: string | null;
   role: "user" | "admin";
   locale: "en" | "id";
