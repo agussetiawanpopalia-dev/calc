@@ -15,7 +15,7 @@
  *    transactions (by id order), so totals always equal actual money spent.
  */
 import { and, eq, like, desc, inArray, sql } from "drizzle-orm";
-import { db } from "./db";
+import { getDb, type Exec } from "./db";
 import {
   backbones,
   backboneCategories,
@@ -42,15 +42,16 @@ export const TOTAL_PERCENT_BP = 10_000;
 
 /* --------------------------------- read paths --------------------------------- */
 
-export function getActiveBackbone(userId: number): ActiveBackbone | null {
-  const backbone = db
+/** Read the user's active plan (and its categories) through `exec` (db or tx). */
+async function loadActiveBackbone(exec: Exec, userId: number): Promise<ActiveBackbone | null> {
+  const backbone = await exec
     .select()
     .from(backbones)
     .where(and(eq(backbones.userId, userId), eq(backbones.isActive, 1)))
     .limit(1)
     .get();
   if (!backbone) return null;
-  const categories = db
+  const categories = await exec
     .select()
     .from(backboneCategories)
     .where(eq(backboneCategories.backboneId, backbone.id))
@@ -59,17 +60,29 @@ export function getActiveBackbone(userId: number): ActiveBackbone | null {
   return { backbone, categories };
 }
 
-export function listPresets(): Array<Backbone & { categories: BackboneCategory[] }> {
-  const presets = db.select().from(backbones).where(eq(backbones.source, "preset")).orderBy(backbones.id).all();
-  return presets.map((preset) => ({
-    ...preset,
-    categories: db
-      .select()
-      .from(backboneCategories)
-      .where(eq(backboneCategories.backboneId, preset.id))
-      .orderBy(backboneCategories.sortOrder, backboneCategories.id)
-      .all(),
-  }));
+export async function getActiveBackbone(userId: number, exec?: Exec): Promise<ActiveBackbone | null> {
+  return loadActiveBackbone(exec ?? (await getDb()), userId);
+}
+
+export async function listPresets(): Promise<Array<Backbone & { categories: BackboneCategory[] }>> {
+  const db = await getDb();
+  const presets = await db
+    .select()
+    .from(backbones)
+    .where(eq(backbones.source, "preset"))
+    .orderBy(backbones.id)
+    .all();
+  return Promise.all(
+    presets.map(async (preset) => ({
+      ...preset,
+      categories: await db
+        .select()
+        .from(backboneCategories)
+        .where(eq(backboneCategories.backboneId, preset.id))
+        .orderBy(backboneCategories.sortOrder, backboneCategories.id)
+        .all(),
+    })),
+  );
 }
 
 export function serializeBackbone(active: ActiveBackbone) {
@@ -132,19 +145,26 @@ export function validateSpec(categories: CategoryInput[], foodOverspendCategoryI
 }
 
 /** A category can only be unlinked while no expenses point at it (requirement 4). */
-function assertRemovable(categoryIds: number[]): void {
+async function assertRemovable(categoryIds: number[], exec: Exec): Promise<void> {
   if (categoryIds.length === 0) return;
-  const rows = db
+  const rows = await exec
     .select({ categoryId: transactions.categoryId, count: sql<number>`count(*)` })
     .from(transactions)
     .where(inArray(transactions.categoryId, categoryIds))
     .groupBy(transactions.categoryId)
     .all();
   if (rows.length > 0) {
-    const names = rows.map((r) => {
-      const cat = db.select().from(backboneCategories).where(eq(backboneCategories.id, r.categoryId)).limit(1).get();
-      return `"${cat?.name ?? r.categoryId}" (${r.count} expense${r.count === 1 ? "" : "s"})`;
-    });
+    const names = await Promise.all(
+      rows.map(async (r) => {
+        const cat = await exec
+          .select()
+          .from(backboneCategories)
+          .where(eq(backboneCategories.id, r.categoryId))
+          .limit(1)
+          .get();
+        return `"${cat?.name ?? r.categoryId}" (${r.count} expense${r.count === 1 ? "" : "s"})`;
+      }),
+    );
     throw new HttpError(
       400,
       `Cannot remove ${names.join(", ")} — expenses are already linked to it. Reassign or delete those expenses first.`,
@@ -154,10 +174,18 @@ function assertRemovable(categoryIds: number[]): void {
 
 /* -------------------------------- write paths -------------------------------- */
 
+/** Load the active plan written inside `tx`, or fail loudly if it vanished. */
+async function requireActiveBackbone(exec: Exec, userId: number): Promise<ActiveBackbone> {
+  const active = await loadActiveBackbone(exec, userId);
+  if (!active) throw new HttpError(500, "Active backbone missing after write.");
+  return active;
+}
+
 /** Clone a preset template into the user's active plan (deactivates the previous one). */
-export function clonePresetToUser(userId: number, presetId: number): ActiveBackbone {
-  return db.transaction((tx) => {
-    const preset = tx
+export async function clonePresetToUser(userId: number, presetId: number): Promise<ActiveBackbone> {
+  const db = await getDb();
+  return db.transaction(async (tx) => {
+    const preset = await tx
       .select()
       .from(backbones)
       .where(and(eq(backbones.id, presetId), eq(backbones.source, "preset")))
@@ -165,7 +193,7 @@ export function clonePresetToUser(userId: number, presetId: number): ActiveBackb
       .get();
     if (!preset) throw new HttpError(404, "That backbone preset does not exist.");
 
-    const presetCats = tx
+    const presetCats = await tx
       .select()
       .from(backboneCategories)
       .where(eq(backboneCategories.backboneId, preset.id))
@@ -173,12 +201,13 @@ export function clonePresetToUser(userId: number, presetId: number): ActiveBackb
       .all();
     if (presetCats.length === 0) throw new HttpError(500, "Preset has no categories.");
 
-    tx.update(backbones)
+    await tx
+      .update(backbones)
       .set({ isActive: 0, updatedAt: sql`datetime('now')` })
       .where(and(eq(backbones.userId, userId), eq(backbones.isActive, 1)))
       .run();
 
-    const created = tx
+    const created = await tx
       .insert(backbones)
       .values({
         userId,
@@ -193,7 +222,7 @@ export function clonePresetToUser(userId: number, presetId: number): ActiveBackb
 
     const idMap = new Map<number, number>();
     for (const cat of presetCats) {
-      const inserted = tx
+      const inserted = await tx
         .insert(backboneCategories)
         .values({
           backboneId: newBackboneId,
@@ -209,39 +238,42 @@ export function clonePresetToUser(userId: number, presetId: number): ActiveBackb
 
     // The clone inherits the preset's overspend target (Wants where available).
     const overspendId = preset.foodOverspendCategoryId ? (idMap.get(preset.foodOverspendCategoryId) ?? null) : null;
-    tx.update(backbones)
+    await tx
+      .update(backbones)
       .set({ foodOverspendCategoryId: overspendId, updatedAt: sql`datetime('now')` })
       .where(eq(backbones.id, newBackboneId))
       .run();
 
-    return getActiveBackbone(userId)!;
+    return requireActiveBackbone(tx, userId);
   });
 }
 
 /** Create a brand-new custom plan during onboarding (requirement 3). */
-export function createCustomBackbone(
+export async function createCustomBackbone(
   userId: number,
   name: string,
   categories: CategoryInput[],
   foodOverspendCategoryIndex: number,
-): ActiveBackbone {
+): Promise<ActiveBackbone> {
   validateSpec(categories, foodOverspendCategoryIndex);
 
-  return db.transaction((tx) => {
-    tx.update(backbones)
+  const db = await getDb();
+  return db.transaction(async (tx) => {
+    await tx
+      .update(backbones)
       .set({ isActive: 0, updatedAt: sql`datetime('now')` })
       .where(and(eq(backbones.userId, userId), eq(backbones.isActive, 1)))
       .run();
 
-    const created = tx
+    const created = await tx
       .insert(backbones)
       .values({ userId, name, source: "custom", isActive: 1, foodOverspendCategoryId: null })
       .run();
     const backboneId = Number(created.lastInsertRowid);
 
     const newIds: number[] = [];
-    categories.forEach((cat, index) => {
-      const inserted = tx
+    for (const [index, cat] of categories.entries()) {
+      const inserted = await tx
         .insert(backboneCategories)
         .values({
           backboneId,
@@ -253,28 +285,30 @@ export function createCustomBackbone(
         })
         .run();
       newIds.push(Number(inserted.lastInsertRowid));
-    });
+    }
 
-    tx.update(backbones)
+    await tx
+      .update(backbones)
       .set({ foodOverspendCategoryId: newIds[foodOverspendCategoryIndex], updatedAt: sql`datetime('now')` })
       .where(eq(backbones.id, backboneId))
       .run();
 
-    return getActiveBackbone(userId)!;
+    return requireActiveBackbone(tx, userId);
   });
 }
 
 /** Replace/edit the active plan's categories in place (budget page). */
-export function updateActiveBackbone(
+export async function updateActiveBackbone(
   userId: number,
   name: string | undefined,
   categories: CategoryInput[],
   foodOverspendCategoryIndex: number,
-): ActiveBackbone {
+): Promise<ActiveBackbone> {
   validateSpec(categories, foodOverspendCategoryIndex);
 
-  return db.transaction((tx) => {
-    const active = getActiveBackbone(userId);
+  const db = await getDb();
+  return db.transaction(async (tx) => {
+    const active = await loadActiveBackbone(tx, userId);
     if (!active) throw new HttpError(403, "No active backbone.");
 
     const existingIds = active.categories.map((c) => c.id);
@@ -285,12 +319,13 @@ export function updateActiveBackbone(
         throw new HttpError(400, "One of those categories does not belong to your active backbone.");
       }
     }
-    assertRemovable(existingIds.filter((id) => !incomingIds.includes(id)));
+    await assertRemovable(existingIds.filter((id) => !incomingIds.includes(id)), tx);
 
     const finalIds: number[] = [];
-    categories.forEach((cat, index) => {
+    for (const [index, cat] of categories.entries()) {
       if (typeof cat.id === "number") {
-        tx.update(backboneCategories)
+        await tx
+          .update(backboneCategories)
           .set({
             name: cat.name.trim(),
             kind: cat.kind,
@@ -302,7 +337,7 @@ export function updateActiveBackbone(
           .run();
         finalIds.push(cat.id);
       } else {
-        const inserted = tx
+        const inserted = await tx
           .insert(backboneCategories)
           .values({
             backboneId: active.backbone.id,
@@ -315,14 +350,15 @@ export function updateActiveBackbone(
           .run();
         finalIds.push(Number(inserted.lastInsertRowid));
       }
-    });
+    }
 
     const removable = existingIds.filter((id) => !incomingIds.includes(id));
     if (removable.length > 0) {
-      tx.delete(backboneCategories).where(inArray(backboneCategories.id, removable)).run();
+      await tx.delete(backboneCategories).where(inArray(backboneCategories.id, removable)).run();
     }
 
-    tx.update(backbones)
+    await tx
+      .update(backbones)
       .set({
         ...(name ? { name } : {}),
         foodOverspendCategoryId: finalIds[foodOverspendCategoryIndex],
@@ -331,7 +367,7 @@ export function updateActiveBackbone(
       .where(eq(backbones.id, active.backbone.id))
       .run();
 
-    return getActiveBackbone(userId)!;
+    return requireActiveBackbone(tx, userId);
   });
 }
 
@@ -377,13 +413,19 @@ type FoodChain = {
  * Overspend is only counted on elapsed days (d ≤ days elapsed relative to `today`);
  * `today`'s available is what a user can actually spend right now.
  */
-function computeFoodChain(active: ActiveBackbone, user: SessionUser, month: string, today: string): FoodChain {
+async function computeFoodChain(
+  exec: Exec,
+  active: ActiveBackbone,
+  user: SessionUser,
+  month: string,
+  today: string,
+): Promise<FoodChain> {
   const daily = user.settings?.dailyFoodBudget ?? 0;
   const dim = daysInMonth(month);
   const elapsed = daysElapsed(month, today);
   const inMonth = today.slice(0, 7) === month;
 
-  const foodRows = db
+  const foodRows = await exec
     .select({
       id: transactions.id,
       amount: transactions.amount,
@@ -468,10 +510,6 @@ function summarizeFood(active: ActiveBackbone, chain: FoodChain): FoodSummary {
   };
 }
 
-function readFoodSummary(active: ActiveBackbone, user: SessionUser, month: string, today: string) {
-  return summarizeFood(active, computeFoodChain(active, user, month, today));
-}
-
 /**
  * Requirement 6: re-book each elapsed day's over-budget food slice from the day's
  * own food transactions (in id order) to the plan's overspend target. Keeps every
@@ -502,15 +540,16 @@ function applyOverspendRebooking(
 
 /* --------------------------------- overview ---------------------------------- */
 
-export function computeOverview(user: SessionUser, month: string, today: string) {
-  const active = getActiveBackbone(user.id);
+export async function computeOverview(user: SessionUser, month: string, today: string) {
+  const db = await getDb();
+  const active = await loadActiveBackbone(db, user.id);
   if (!active) throw new HttpError(403, "Finish setting up your budget first.");
 
   const income = user.settings?.monthlyIncome ?? 0;
   const dim = daysInMonth(month);
   const elapsed = daysElapsed(month, today);
 
-  const monthTx = db
+  const monthTx = await db
     .select()
     .from(transactions)
     .where(and(eq(transactions.userId, user.id), like(transactions.spentOn, `${month}-%`)))
@@ -524,7 +563,7 @@ export function computeOverview(user: SessionUser, month: string, today: string)
     totalSpent += tx.amount;
   }
 
-  const chain = computeFoodChain(active, user, month, today);
+  const chain = await computeFoodChain(db, active, user, month, today);
   applyOverspendRebooking(active, spentByCategory, chain);
 
   const categories = active.categories.map((cat) => {
@@ -577,14 +616,15 @@ export function computeOverview(user: SessionUser, month: string, today: string)
 
 /* -------------------------------- food page ---------------------------------- */
 
-export function computeFoodPage(user: SessionUser, month: string, today: string) {
-  const active = getActiveBackbone(user.id);
+export async function computeFoodPage(user: SessionUser, month: string, today: string) {
+  const db = await getDb();
+  const active = await loadActiveBackbone(db, user.id);
   if (!active) throw new HttpError(403, "Finish setting up your budget first.");
 
-  const chain = computeFoodChain(active, user, month, today);
+  const chain = await computeFoodChain(db, active, user, month, today);
   const summary = summarizeFood(active, chain);
 
-  const entries = db
+  const entries = await db
     .select({ tx: transactions, categoryName: backboneCategories.name })
     .from(transactions)
     .innerJoin(backboneCategories, eq(transactions.categoryId, backboneCategories.id))

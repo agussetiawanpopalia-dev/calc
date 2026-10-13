@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     const normalized = normalizePhone(phone);
     if (!normalized) throw new HttpError(400, "That phone number does not look valid. Try e.g. 0812 3456 7890.");
 
-    const result = requestOtp(normalized);
+    const result = await requestOtp(normalized);
     return ok({ phone: normalized, ...result });
   });
 }

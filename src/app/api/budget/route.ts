@@ -12,10 +12,10 @@ import {
 export async function GET() {
   return handle(async () => {
     const user = await requireUser();
-    const active = getActiveBackbone(user.id);
+    const active = await getActiveBackbone(user.id);
     if (!active) throw new HttpError(403, "Finish setting up your budget first.");
 
-    const presets = listPresets().map((preset) => ({
+    const presets = (await listPresets()).map((preset) => ({
       id: preset.id,
       slug: preset.slug,
       name: preset.name,
@@ -48,7 +48,7 @@ export async function PUT(req: Request) {
     const body = await readJson(req, updateSchema);
     const user = await requireUser();
 
-    const updated = updateActiveBackbone(
+    const updated = await updateActiveBackbone(
       user.id,
       body.name,
       body.categories,

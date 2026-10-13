@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { eq, sql } from "drizzle-orm";
 import { handle, ok, readJson, publicUser } from "@/lib/api";
 import { requireAuthedUser, HttpError } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { users, userSettings } from "@/lib/schema";
 import { clonePresetToUser, createCustomBackbone } from "@/lib/budget";
 
@@ -32,15 +32,16 @@ export async function POST(req: Request) {
     const body = await readJson(req, schema);
     const user = await requireAuthedUser();
     if (user.onboardedAt) throw new HttpError(400, "This account is already set up.");
+    const db = await getDb();
 
     // 1. Backbone FIRST: preset clone OR custom (validated: sums to 100%,
     // overspend target chosen). If validation fails here, the account is left
     // untouched so onboarding can simply be retried.
     const { presetId, name, categories, foodOverspendCategoryIndex } = body.backbone;
     if (typeof presetId === "number") {
-      clonePresetToUser(user.id, presetId);
+      await clonePresetToUser(user.id, presetId);
     } else if (categories && name && typeof foodOverspendCategoryIndex === "number") {
-      createCustomBackbone(user.id, name, categories, foodOverspendCategoryIndex);
+      await createCustomBackbone(user.id, name, categories, foodOverspendCategoryIndex);
     } else {
       throw new HttpError(
         400,
@@ -49,7 +50,8 @@ export async function POST(req: Request) {
     }
 
     // 2. Profile + numbers — mark onboarded only after the backbone exists
-    db.update(users)
+    await db
+      .update(users)
       .set({
         displayName: body.displayName,
         locale: body.locale,
@@ -59,7 +61,8 @@ export async function POST(req: Request) {
       .where(eq(users.id, user.id))
       .run();
 
-    db.insert(userSettings)
+    await db
+      .insert(userSettings)
       .values({
         userId: user.id,
         monthlyIncome: body.monthlyIncome,

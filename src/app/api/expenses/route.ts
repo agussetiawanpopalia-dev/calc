@@ -2,7 +2,7 @@ import { z } from "zod";
 import { and, desc, eq, like } from "drizzle-orm";
 import { handle, ok, readJson } from "@/lib/api";
 import { requireUser, HttpError } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { transactions, backboneCategories } from "@/lib/schema";
 import { getActiveBackbone } from "@/lib/budget";
 import { isValidMonth, isValidDate, monthKey } from "@/lib/dates";
@@ -23,8 +23,9 @@ export async function GET(req: Request) {
     const monthParam = url.searchParams.get("month");
     const month = monthParam && isValidMonth(monthParam) ? monthParam : monthKey(new Date());
     const user = await requireUser();
+    const db = await getDb();
 
-    const rows = db
+    const rows = await db
       .select({ tx: transactions, categoryName: backboneCategories.name })
       .from(transactions)
       .innerJoin(backboneCategories, eq(transactions.categoryId, backboneCategories.id))
@@ -56,27 +57,30 @@ export async function POST(req: Request) {
   return handle(async () => {
     const body = await readJson(req, createSchema);
     const user = await requireUser();
+    const db = await getDb();
 
-    const active = getActiveBackbone(user.id);
+    const active = await getActiveBackbone(user.id);
     if (!active) throw new HttpError(403, "Finish setting up your budget first.");
     const category = active.categories.find((c) => c.id === body.categoryId);
     if (!category) {
       throw new HttpError(400, "That category is not part of your active backbone. Pick one of yours.");
     }
 
-    const id = db
-      .insert(transactions)
-      .values({
-        userId: user.id,
-        categoryId: body.categoryId,
-        kind: "expense",
-        name: body.name,
-        amount: body.amount,
-        isFood: body.isFood ? 1 : 0,
-        spentOn: body.spentOn,
-        note: body.note ?? null,
-      })
-      .run().lastInsertRowid;
+    const id = (
+      await db
+        .insert(transactions)
+        .values({
+          userId: user.id,
+          categoryId: body.categoryId,
+          kind: "expense",
+          name: body.name,
+          amount: body.amount,
+          isFood: body.isFood ? 1 : 0,
+          spentOn: body.spentOn,
+          note: body.note ?? null,
+        })
+        .run()
+    ).lastInsertRowid;
 
     return ok({ id: Number(id) }, 201);
   });

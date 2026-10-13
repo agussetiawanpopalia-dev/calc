@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   return handle(async () => {
     const { presetId } = await readJson(req, schema);
     const user = await requireUser();
-    const active = clonePresetToUser(user.id, presetId);
+    const active = await clonePresetToUser(user.id, presetId);
     return ok({ backbone: serializeBackbone(active) });
   });
 }

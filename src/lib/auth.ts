@@ -2,7 +2,7 @@ import { randomBytes, createHash, randomInt, timingSafeEqual } from "node:crypto
 import { cookies } from "next/headers";
 import { eq, and, isNull, gt, desc } from "drizzle-orm";
 import { sql } from "drizzle-orm";
-import { db } from "./db";
+import { getDb } from "./db";
 import { users, sessions, otpCodes, userSettings, type User, type UserSettings } from "./schema";
 
 export const SESSION_COOKIE = "mc_session";
@@ -28,8 +28,10 @@ const sha256 = (value: string) => createHash("sha256").update(value, "utf8").dig
 /* ---------------------------------- sessions ---------------------------------- */
 
 export async function createSession(userId: number, userAgent?: string | null): Promise<string> {
+  const db = await getDb();
   const token = randomBytes(32).toString("base64url");
-  db.insert(sessions)
+  await db
+    .insert(sessions)
     .values({
       userId,
       tokenHash: sha256(token),
@@ -59,7 +61,8 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
-  const row = db
+  const db = await getDb();
+  const row = await db
     .select({ session: sessions, user: users })
     .from(sessions)
     .innerJoin(users, eq(sessions.userId, users.id))
@@ -76,10 +79,14 @@ export async function getSessionUser(): Promise<SessionUser | null> {
 
   if (!row) return null;
 
-  db.update(sessions).set({ lastSeenAt: sql`datetime('now')` }).where(eq(sessions.id, row.session.id)).run();
+  await db
+    .update(sessions)
+    .set({ lastSeenAt: sql`datetime('now')` })
+    .where(eq(sessions.id, row.session.id))
+    .run();
 
   const settings =
-    db.select().from(userSettings).where(eq(userSettings.userId, row.user.id)).limit(1).get() ?? null;
+    (await db.select().from(userSettings).where(eq(userSettings.userId, row.user.id)).limit(1).get()) ?? null;
 
   return { ...row.user, settings };
 }
@@ -88,7 +95,9 @@ export async function destroySession(): Promise<void> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (token) {
-    db.update(sessions)
+    const db = await getDb();
+    await db
+      .update(sessions)
       .set({ revokedAt: sql`datetime('now')` })
       .where(eq(sessions.tokenHash, sha256(token)))
       .run();
@@ -105,8 +114,9 @@ export type RequestOtpResult = {
   devOtp?: string;
 };
 
-export function requestOtp(phone: string): RequestOtpResult {
-  const latest = db
+export async function requestOtp(phone: string): Promise<RequestOtpResult> {
+  const db = await getDb();
+  const latest = await db
     .select({ createdAt: otpCodes.createdAt })
     .from(otpCodes)
     .where(eq(otpCodes.phone, phone))
@@ -122,7 +132,8 @@ export function requestOtp(phone: string): RequestOtpResult {
   }
 
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
-  db.insert(otpCodes)
+  await db
+    .insert(otpCodes)
     .values({
       phone,
       code,
@@ -140,8 +151,9 @@ export function requestOtp(phone: string): RequestOtpResult {
   throw new HttpError(501, "SMS delivery is not configured. Set OTP_MODE=dev for local drafts.");
 }
 
-export function verifyOtp(phone: string, code: string): SessionUser {
-  const otp = db
+export async function verifyOtp(phone: string, code: string): Promise<SessionUser> {
+  const db = await getDb();
+  const otp = await db
     .select()
     .from(otpCodes)
     .where(and(eq(otpCodes.phone, phone), isNull(otpCodes.consumedAt)))
@@ -158,31 +170,38 @@ export function verifyOtp(phone: string, code: string): SessionUser {
   const matches = a.length === b.length && timingSafeEqual(a, b);
 
   if (!matches) {
-    db.update(otpCodes).set({ attempts: otp.attempts + 1 }).where(eq(otpCodes.id, otp.id)).run();
+    await db.update(otpCodes).set({ attempts: otp.attempts + 1 }).where(eq(otpCodes.id, otp.id)).run();
     const left = otp.maxAttempts - (otp.attempts + 1);
     throw new HttpError(401, left > 0 ? `Incorrect code. ${left} attempt(s) left.` : "Too many attempts.");
   }
 
-  db.update(otpCodes).set({ consumedAt: sql`datetime('now')` }).where(eq(otpCodes.id, otp.id)).run();
+  await db.update(otpCodes).set({ consumedAt: sql`datetime('now')` }).where(eq(otpCodes.id, otp.id)).run();
   return upsertUserByPhone(phone);
 }
 
 /** Registration == first login with a phone number. Creates the user row if new. */
-export function upsertUserByPhone(phone: string): SessionUser {
-  let user = db.select().from(users).where(eq(users.phone, phone)).limit(1).get();
+export async function upsertUserByPhone(phone: string): Promise<SessionUser> {
+  const db = await getDb();
+  let user = await db.select().from(users).where(eq(users.phone, phone)).limit(1).get();
 
   if (!user) {
-    const info = db.insert(users).values({ phone, lastLoginAt: sql`datetime('now')` }).run();
-    user = db.select().from(users).where(eq(users.id, Number(info.lastInsertRowid))).limit(1).get()!;
+    const info = await db.insert(users).values({ phone, lastLoginAt: sql`datetime('now')` }).run();
+    user = (await db
+      .select()
+      .from(users)
+      .where(eq(users.id, Number(info.lastInsertRowid)))
+      .limit(1)
+      .get())!;
   } else {
-    db.update(users)
+    await db
+      .update(users)
       .set({ lastLoginAt: sql`datetime('now')`, updatedAt: sql`datetime('now')` })
       .where(eq(users.id, user.id))
       .run();
   }
 
   const settings =
-    db.select().from(userSettings).where(eq(userSettings.userId, user.id)).limit(1).get() ?? null;
+    (await db.select().from(userSettings).where(eq(userSettings.userId, user.id)).limit(1).get()) ?? null;
 
   return { ...user, settings };
 }

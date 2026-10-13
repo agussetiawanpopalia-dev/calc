@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     const normalized = normalizePhone(phone);
     if (!normalized) throw new HttpError(400, "That phone number does not look valid.");
 
-    const user = verifyOtp(normalized, code);
+    const user = await verifyOtp(normalized, code);
     const token = await createSession(user.id, req.headers.get("user-agent"));
     await attachSessionCookie(token);
 

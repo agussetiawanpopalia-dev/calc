@@ -1,5 +1,5 @@
 /**
- * Flyway-style migration runner.
+ * Flyway-style migration runner (libSQL / Turso).
  *
  * - Migrations live in db/migrations and are named V<version>__<description>.sql
  * - Each migration runs inside a transaction and is recorded in `_migrations`
@@ -7,15 +7,17 @@
  *   but editing an already-applied file is an error (flyway "validate" behaviour).
  * - Versions must be unique and are applied in ascending order.
  *
- * Usage: npm run db:migrate
+ * Local (default): applies to `file:./data/money.db` — `npm run db:migrate`.
+ * Production (Turso): point TURSO_DATABASE_URL/TURSO_AUTH_TOKEN at the database
+ * and set MIGRATE_ALLOW_REMOTE=1 — remote targets are skipped otherwise so a
+ * stray build/CI step can never touch production by accident.
  */
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import Database from "better-sqlite3";
+import { createSqliteClient, databaseTarget, isRemoteUrl } from "../src/lib/db";
 
 const MIGRATIONS_DIR = path.join(process.cwd(), "db", "migrations");
-const DB_PATH = process.env.DATABASE_PATH ?? path.join(process.cwd(), "data", "money.db");
 
 const FILE_RE = /^V(\d+)__([A-Za-z0-9_]+)\.sql$/;
 
@@ -55,13 +57,27 @@ function loadMigrations(): MigrationFile[] {
   return migrations.sort((a, b) => a.version - b.version);
 }
 
-function main() {
-  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-  const db = new Database(DB_PATH);
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
+async function main() {
+  const allowRemote = process.env.MIGRATE_ALLOW_REMOTE === "1";
+  const target = databaseTarget();
 
-  db.exec(`
+  if (process.env.VERCEL && !allowRemote) {
+    console.log(
+      `Skipping migrations during the Vercel build. Run them against production explicitly with MIGRATE_ALLOW_REMOTE=1 (target: ${target}).`,
+    );
+    return;
+  }
+  if (isRemoteUrl && !allowRemote) {
+    console.log(
+      `Database target is remote (${target}). Set MIGRATE_ALLOW_REMOTE=1 to apply migrations to it.`,
+    );
+    return;
+  }
+
+  console.log(`Applying migrations to ${target}`);
+  const client = await createSqliteClient();
+
+  await client.executeMultiple(`
     CREATE TABLE IF NOT EXISTS _migrations (
       version         INTEGER PRIMARY KEY,
       description     TEXT    NOT NULL,
@@ -73,18 +89,20 @@ function main() {
   `);
 
   const migrations = loadMigrations();
-  const appliedStmt = db.prepare("SELECT * FROM _migrations WHERE version = ?");
 
   let applied = 0;
   let skipped = 0;
 
   for (const migration of migrations) {
-    const existing = appliedStmt.get(migration.version) as
-      | { version: number; checksum: string; script: string }
-      | undefined;
+    const existing = (
+      await client.execute({
+        sql: "SELECT version, checksum FROM _migrations WHERE version = ?",
+        args: [migration.version],
+      })
+    ).rows[0];
 
     if (existing) {
-      if (existing.checksum !== migration.checksum) {
+      if (String(existing.checksum) !== migration.checksum) {
         throw new Error(
           `Checksum mismatch for ${migration.file}: it was applied with a different content. ` +
             `Migrations are immutable — create a new V${migration.version + 1}__*.sql instead of editing history.`,
@@ -95,14 +113,19 @@ function main() {
     }
 
     const started = Date.now();
-    const run = db.transaction(() => {
-      db.exec(migration.sql);
-      db.prepare(
-        `INSERT INTO _migrations (version, description, script, checksum, execution_time_ms)
-         VALUES (?, ?, ?, ?, ?)`,
-      ).run(migration.version, migration.description, migration.file, migration.checksum, Date.now() - started);
-    });
-    run();
+    const tx = await client.transaction("write");
+    try {
+      await tx.executeMultiple(migration.sql);
+      await tx.execute({
+        sql: `INSERT INTO _migrations (version, description, script, checksum, execution_time_ms)
+              VALUES (?, ?, ?, ?, ?)`,
+        args: [migration.version, migration.description, migration.file, migration.checksum, Date.now() - started],
+      });
+      await tx.commit();
+    } catch (error) {
+      await tx.rollback().catch(() => {});
+      throw error;
+    }
     applied++;
     console.log(`✓ Applied V${migration.version} (${migration.description}) — ${Date.now() - started}ms`);
   }
@@ -112,12 +135,10 @@ function main() {
       ? `Database is up to date (${skipped} migrations already applied).`
       : `Migrations complete: ${applied} applied, ${skipped} already up to date.`,
   );
-  db.close();
+  client.close();
 }
 
-try {
-  main();
-} catch (error) {
+main().catch((error) => {
   console.error(`Migration failed: ${error instanceof Error ? error.message : error}`);
   process.exit(1);
-}
+});

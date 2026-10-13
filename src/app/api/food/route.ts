@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { handle, ok, readJson } from "@/lib/api";
 import { requireUser, HttpError } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { transactions } from "@/lib/schema";
 import { computeFoodPage, getActiveBackbone } from "@/lib/budget";
 import { isValidMonth, isValidDate, monthKey, todayISO } from "@/lib/dates";
@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     const month = monthParam && isValidMonth(monthParam) ? monthParam : monthKey(new Date(`${today}T00:00:00`));
 
     const user = await requireUser();
-    return ok({ food: computeFoodPage(user, month, today) });
+    return ok({ food: await computeFoodPage(user, month, today) });
   });
 }
 
@@ -34,8 +34,9 @@ export async function POST(req: Request) {
   return handle(async () => {
     const body = await readJson(req, createSchema);
     const user = await requireUser();
+    const db = await getDb();
 
-    const active = getActiveBackbone(user.id);
+    const active = await getActiveBackbone(user.id);
     if (!active) throw new HttpError(403, "Finish setting up your budget first.");
 
     let categoryId = body.categoryId;
@@ -49,19 +50,21 @@ export async function POST(req: Request) {
       categoryId = defaultCategory.id;
     }
 
-    const id = db
-      .insert(transactions)
-      .values({
-        userId: user.id,
-        categoryId: categoryId!,
-        kind: "expense",
-        name: body.name,
-        amount: body.amount,
-        isFood: 1,
-        spentOn: body.spentOn,
-        note: null,
-      })
-      .run().lastInsertRowid;
+    const id = (
+      await db
+        .insert(transactions)
+        .values({
+          userId: user.id,
+          categoryId: categoryId!,
+          kind: "expense",
+          name: body.name,
+          amount: body.amount,
+          isFood: 1,
+          spentOn: body.spentOn,
+          note: null,
+        })
+        .run()
+    ).lastInsertRowid;
 
     return ok({ id: Number(id) }, 201);
   });

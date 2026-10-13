@@ -4,7 +4,7 @@ import { listPresets } from "@/lib/budget";
 /** Preset backbone templates available during account creation / switching. */
 export async function GET() {
   return handle(async () => {
-    const presets = listPresets().map((preset) => ({
+    const presets = (await listPresets()).map((preset) => ({
       id: preset.id,
       slug: preset.slug,
       name: preset.name,

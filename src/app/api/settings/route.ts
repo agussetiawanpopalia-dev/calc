@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { eq, sql } from "drizzle-orm";
 import { handle, ok, readJson, publicUser } from "@/lib/api";
 import { requireAuthedUser } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { users, userSettings } from "@/lib/schema";
 
 export async function GET() {
@@ -24,9 +24,11 @@ export async function PUT(req: Request) {
   return handle(async () => {
     const body = await readJson(req, schema);
     const user = await requireAuthedUser();
+    const db = await getDb();
 
     if (body.displayName !== undefined || body.locale !== undefined) {
-      db.update(users)
+      await db
+        .update(users)
         .set({
           ...(body.displayName !== undefined ? { displayName: body.displayName } : {}),
           ...(body.locale !== undefined ? { locale: body.locale } : {}),
@@ -39,7 +41,8 @@ export async function PUT(req: Request) {
     const hasSettingsChange =
       body.monthlyIncome !== undefined || body.dailyFoodBudget !== undefined;
     if (hasSettingsChange) {
-      db.insert(userSettings)
+      await db
+        .insert(userSettings)
         .values({
           userId: user.id,
           monthlyIncome: body.monthlyIncome ?? 0,

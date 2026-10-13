@@ -14,6 +14,6 @@ export async function GET(req: Request) {
     if (!isValidMonth(month)) throw new HttpError(400, "Invalid month. Use YYYY-MM.");
 
     const user = await requireUser();
-    return ok({ overview: computeOverview(user, month, today) });
+    return ok({ overview: await computeOverview(user, month, today) });
   });
 }

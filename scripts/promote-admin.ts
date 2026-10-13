@@ -2,14 +2,12 @@
  * Promote a phone number to admin (or create the user first).
  * Admin web UI is a backlog item — this CLI is the v1 way to grant the role.
  *
- * Usage: npm run db:promote-admin -- +6281234567890
+ * Local:      npm run db:promote-admin -- +6281234567890
+ * Production: MIGRATE_ALLOW_REMOTE=1 TURSO_DATABASE_URL=... TURSO_AUTH_TOKEN=... npm run db:promote-admin -- +6281234567890
  */
-import Database from "better-sqlite3";
-import path from "node:path";
-import fs from "node:fs";
 import { normalizePhone } from "../src/lib/phone";
+import { createSqliteClient, databaseTarget } from "../src/lib/db";
 
-const DB_PATH = process.env.DATABASE_PATH ?? path.join(process.cwd(), "data", "money.db");
 const raw = process.argv[2];
 const phone = raw ? normalizePhone(raw) : null;
 
@@ -18,21 +16,32 @@ if (!phone) {
   process.exit(1);
 }
 
-fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-const db = new Database(DB_PATH);
-db.pragma("foreign_keys = ON");
+async function main() {
+  console.log(`Promoting ${phone} on ${databaseTarget()}`);
+  const client = await createSqliteClient();
 
-const existing = db.prepare("SELECT id, role FROM users WHERE phone = ?").get(phone) as
-  | { id: number; role: string }
-  | undefined;
+  const existing = (
+    await client.execute({ sql: "SELECT id, role FROM users WHERE phone = ?", args: [phone!] })
+  ).rows[0];
 
-if (existing) {
-  db.prepare("UPDATE users SET role = 'admin', updated_at = datetime('now') WHERE id = ?").run(existing.id);
-  console.log(`✓ ${phone} promoted to admin (user #${existing.id})`);
-} else {
-  const info = db
-    .prepare("INSERT INTO users (phone, role) VALUES (?, 'admin')")
-    .run(phone);
-  console.log(`✓ ${phone} created and promoted to admin (user #${info.lastInsertRowid})`);
+  if (existing) {
+    await client.execute({
+      sql: "UPDATE users SET role = 'admin', updated_at = datetime('now') WHERE id = ?",
+      args: [Number(existing.id)],
+    });
+    console.log(`✓ ${phone} promoted to admin (user #${Number(existing.id)})`);
+  } else {
+    const result = await client.execute({
+      sql: "INSERT INTO users (phone, role) VALUES (?, 'admin')",
+      args: [phone!],
+    });
+    console.log(`✓ ${phone} created and promoted to admin (user #${Number(result.lastInsertRowid)})`);
+  }
+
+  client.close();
 }
-db.close();
+
+main().catch((error) => {
+  console.error(`Failed: ${error instanceof Error ? error.message : error}`);
+  process.exit(1);
+});

@@ -162,7 +162,7 @@ for (const vp of VIEWPORTS) {
   await page.waitForTimeout(700);
 
   // open the add-expense sheet (exercises Sheet open + body scroll lock)
-  await page.getByRole("button", { name: "Add expense" }).click();
+  await page.locator('button:has-text("Add expense")').click();
   await page.waitForSelector("[role=dialog]");
   check(scope, "sheet opens", await page.isVisible("[role=dialog]"));
   const lock = await page.evaluate(() => document.body.style.overflow);
@@ -186,7 +186,7 @@ for (const vp of VIEWPORTS) {
   check(scope, "new expense appears in list", await page.getByText("UI test snack").isVisible());
 
   // reopen and dismiss with Escape
-  await page.getByRole("button", { name: "Add expense" }).click();
+  await page.locator('button:has-text("Add expense")').click();
   await page.waitForSelector("[role=dialog]");
   await page.keyboard.press("Escape");
   const gone = await page.waitForSelector("[role=dialog]", { state: "detached", timeout: 3000 }).then(() => true, () => false);

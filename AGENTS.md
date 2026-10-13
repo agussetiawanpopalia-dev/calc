@@ -2,7 +2,7 @@
 
 ## Layout
 
-- This is the money-calculator app: Next.js 16 + React 19 + Tailwind v4, backed by SQLite (`better-sqlite3`) via Drizzle. It is its own git repo; the workspace root `/Users/asani/@Persona` is not.
+- This is the money-calculator app: Next.js 16 + React 19 + Tailwind v4, backed by SQLite via Drizzle (`@libsql/client`). Local dev/tests use a SQLite file (`data/money.db`); production on Vercel talks to a **remote Turso** database over HTTP. It is its own git repo; the workspace root `/Users/asani/@Persona` is not.
 - This file mixes manual project guidance (above) with a managed Next.js agent-rules block (below, delimited by `BEGIN/END nextjs-agent-rules` HTML-comment markers). `next dev` upserts that block in place and leaves content outside the markers untouched — keep the markers intact and don't edit the block by hand.
 - The iOS glass UI is built from the workspace skill at `/Users/asani/@Persona/.agents/skills/ios-glass-ui-designer/` — read it before touching any component styling. For the liquid-glass aesthetic itself, start with this CSS guide: https://www.abinandhan.in/blog/how-to-create-apples-liquid-glass-ui-style-for-the-web-complete-css-guide
 - The app is bilingual; strings live in `src/lib/i18n/en.ts` (source of truth) and `id.ts` (type-enforced `Dictionary`). Any key added to `en.ts` must also be added to `id.ts`.
@@ -25,10 +25,11 @@ npm run test:shots           # full-page screenshots → /tmp/mc-shots
 ## Operational gotchas (highest signal)
 
 - **Stale server kills you.** Kill with `pkill -f "next-server"` — `pkill -f "next start"` misses it. A leftover server holding an old DB causes phantom test failures.
-- **Fresh DB per e2e/UI run.** `test:e2e`, `test:ui`, and `test:shots` all sign up brand-new users during onboarding, so a populated DB fails `mustOnboard` paths. Reset with `rm data/money.db && npm run db:migrate`.
-- **Migrations are immutable and checksummed** (Flyway-style runner in `scripts/migrate.ts`). Never edit an applied `db/migrations/V*.sql`; write a new `V00N__*.sql`.
-- DB file is `data/money.db`, override with `DATABASE_PATH`, git-ignored.
-- `better-sqlite3` is a native module held external in `next.config.ts` (`serverExternalPackages`) — keep it that way.
+- **Fresh DB per e2e/UI run.** `test:e2e`, `test:ui`, and `test:shots` all sign up brand-new users during onboarding, so a populated DB fails `mustOnboard` paths. Reset with `rm data/money.db* && npm run db:migrate`. Run `test:e2e` **before** `test:ui` on the same DB: the UI audit signs in as the user the e2e suite onboards.
+- **Migrations are immutable and checksummed** (Flyway-style runner in `scripts/migrate.ts`). Never edit an applied `db/migrations/V*.sql`; write a new `V00N__*.sql`. The runner **skips remote targets unless `MIGRATE_ALLOW_REMOTE=1`** and always skips during the Vercel build, so `predev`/`prebuild` can never accidentally hit production.
+- DB file is `data/money.db`, override with `DATABASE_PATH`, git-ignored. Remote storage is configured purely by env: `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` (provisioned automatically by the Vercel Turso integration) take precedence over the file.
+- `src/lib/db.ts` exposes an async, cached `getDb()`. It routes remote URLs (`libsql:`/`https:`) through `@libsql/client/web` (pure HTTP, no native module) and local `file:` URLs through the native `@libsql/client` binding, which is held external in `next.config.ts` (`serverExternalPackages`) — keep it external so the binary is never traced into the server bundle.
+- **The data layer is async.** Every Drizzle terminal call (`.get()`/`.all()`/`.run()`) is `await`ed. Helpers that run inside a transaction take an `Exec` (`src/lib/db.ts`: db **or** `tx`) so transactional reads use the same connection.
 
 ## Architecture rules
 

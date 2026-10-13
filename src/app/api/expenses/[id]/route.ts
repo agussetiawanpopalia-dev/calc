@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { handle, ok } from "@/lib/api";
 import { requireUser, HttpError } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { transactions } from "@/lib/schema";
 
 type Params = { params: Promise<{ id: string }> };
@@ -14,7 +14,8 @@ export async function DELETE(_req: Request, { params }: Params) {
     const numericId = Number(id);
     if (!Number.isInteger(numericId) || numericId <= 0) throw new HttpError(400, "Invalid expense id.");
 
-    const row = db
+    const db = await getDb();
+    const row = await db
       .select({ id: transactions.id })
       .from(transactions)
       .where(and(eq(transactions.id, numericId), eq(transactions.userId, user.id)))
@@ -22,7 +23,7 @@ export async function DELETE(_req: Request, { params }: Params) {
       .get();
     if (!row) throw new HttpError(404, "Expense not found.");
 
-    db.delete(transactions).where(eq(transactions.id, numericId)).run();
+    await db.delete(transactions).where(eq(transactions.id, numericId)).run();
     return ok({ id: numericId });
   });
 }
