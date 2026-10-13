@@ -10,9 +10,13 @@ const SESSION_DAYS = 30;
 const OTP_MINUTES = 10;
 const RESEND_COOLDOWN_SECONDS = 60;
 
-/** OTP delivery mode. 'dev' returns the code in the API response (draft for ~10 users, no SMS bill).
- *  Swap to 'sms' by providing a provider in the `deliverOtp` hook below — the flow doesn't change. */
-const OTP_MODE = process.env.OTP_MODE ?? "dev";
+/** OTP delivery mode.
+ * - 'dev': returns code in API response (local dev only)
+ * - 'email': sends OTP via Resend (production)
+ * Set OTP_MODE=email and RESEND_API_KEY in production. */
+const OTP_MODE = (process.env.OTP_MODE as "dev" | "email") ?? "dev";
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "MoneyCalc <otp@localhost>";
 
 export class HttpError extends Error {
   constructor(
@@ -108,7 +112,7 @@ export async function destroySession(): Promise<void> {
 /* ------------------------------------- OTP ------------------------------------- */
 
 export type RequestOtpResult = {
-  delivery: "dev" | "sms";
+  delivery: "dev" | "email";
   expiresInSeconds: number;
   /** Present only when delivery === 'dev' */
   devOtp?: string;
@@ -147,8 +151,51 @@ export async function requestOtp(phone: string): Promise<RequestOtpResult> {
   if (OTP_MODE === "dev") {
     return { delivery: "dev", expiresInSeconds: OTP_MINUTES * 60, devOtp: code };
   }
-  // TODO(sms): plug Twilio / WhatsApp Cloud API here — `code` is the message payload.
-  throw new HttpError(501, "SMS delivery is not configured. Set OTP_MODE=dev for local drafts.");
+
+  if (OTP_MODE === "email") {
+    // Look up user by phone to get their email
+    const user = await db.select({ email: users.email }).from(users).where(eq(users.phone, phone)).limit(1).get();
+    if (!user?.email) {
+      throw new HttpError(400, "No email on file for this account. Complete onboarding first.");
+    }
+
+    if (!RESEND_API_KEY) {
+      throw new HttpError(500, "Email delivery not configured (missing RESEND_API_KEY).");
+    }
+
+    const { Resend } = await import("resend");
+    const resend = new Resend(RESEND_API_KEY);
+
+    const { error } = await resend.emails.send({
+      from: RESEND_FROM_EMAIL,
+      to: user.email,
+      subject: "Your MoneyCalc sign-in code",
+      html: `<!DOCTYPE html>
+<html>
+  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a1a1a;">
+    <div style="max-width: 480px; margin: 0 auto; padding: 24px;">
+      <h1 style="font-size: 24px; font-weight: 600; margin-bottom: 16px;">MoneyCalc</h1>
+      <p style="font-size: 16px; margin-bottom: 24px;">Your sign-in code:</p>
+      <div style="background: #f5f5f5; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 24px;">
+        <span style="font-size: 32px; font-weight: 700; letter-spacing: 8px; font-family: 'SF Mono', Monaco, monospace;">${code}</span>
+      </div>
+      <p style="font-size: 14px; color: #666;">This code expires in ${OTP_MINUTES} minutes.</p>
+      <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+      <p style="font-size: 12px; color: #999;">If you didn't request this, you can safely ignore this email.</p>
+    </div>
+  </body>
+</html>`,
+    });
+
+    if (error) {
+      console.error("[resend] send error:", error);
+      throw new HttpError(500, "Failed to send email. Please try again.");
+    }
+
+    return { delivery: "email", expiresInSeconds: OTP_MINUTES * 60 };
+  }
+
+  throw new HttpError(501, "OTP delivery not configured. Set OTP_MODE=dev or OTP_MODE=email.");
 }
 
 export async function verifyOtp(phone: string, code: string): Promise<SessionUser> {

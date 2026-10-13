@@ -16,6 +16,7 @@ const categorySchema = z.object({
 
 const schema = z.object({
   displayName: z.string().trim().min(1, "What should we call you?").max(60),
+  email: z.string().trim().email("Enter a valid email address.").max(120),
   locale: z.enum(["en", "id"]),
   monthlyIncome: z.number().int().min(0).max(10_000_000_000),
   dailyFoodBudget: z.number().int().min(0).max(10_000_000),
@@ -54,6 +55,7 @@ export async function POST(req: Request) {
       .update(users)
       .set({
         displayName: body.displayName,
+        email: body.email,
         locale: body.locale,
         onboardedAt: sql`datetime('now')`,
         updatedAt: sql`datetime('now')`,

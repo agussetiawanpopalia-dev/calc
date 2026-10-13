@@ -9,6 +9,7 @@ const now = () => sql`datetime('now')`;
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   phone: text("phone").notNull().unique(),
+  email: text("email").unique(),
   displayName: text("display_name"),
   role: text("role").notNull().default("user"),
   status: text("status").notNull().default("active"),

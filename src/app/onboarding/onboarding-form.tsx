@@ -32,6 +32,7 @@ export function OnboardingForm({ initialName, initialPhone }: { initialName: str
   const presets = useApi<{ presets: Preset[] }>("/api/presets");
 
   const [name, setName] = useState(initialName);
+  const [email, setEmail] = useState("");
   const [income, setIncome] = useState("");
   const [dailyFoodBudget, setDailyFoodBudget] = useState("");
   const [mode, setMode] = useState<"preset" | "custom">("preset");
@@ -53,6 +54,9 @@ export function OnboardingForm({ initialName, initialPhone }: { initialName: str
   const submit = async () => {
     setError(null);
     if (!name.trim()) return setError(t("setup.nameLabel"));
+    const emailTrimmed = email.trim();
+    if (!emailTrimmed) return setError(t("setup.emailLabel"));
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed)) return setError(t("setup.invalidEmail"));
 
     const parsedIncome = Number(income.replace(/\D/g, "")) || 0;
     const parsedDailyFood = Number(dailyFoodBudget.replace(/\D/g, "")) || 0;
@@ -85,6 +89,7 @@ export function OnboardingForm({ initialName, initialPhone }: { initialName: str
         method: "POST",
         body: {
           displayName: name.trim(),
+          email: emailTrimmed,
           locale,
           monthlyIncome: parsedIncome,
           dailyFoodBudget: parsedDailyFood,
@@ -115,6 +120,16 @@ export function OnboardingForm({ initialName, initialPhone }: { initialName: str
             value={name}
             placeholder={t("setup.namePlaceholder")}
             onChange={(e) => setName(e.target.value)}
+          />
+        </Field>
+        <Field label={t("setup.emailLabel")} hint={t("setup.emailHint")}>
+          <TextInput
+            type="email"
+            autoComplete="email"
+            inputMode="email"
+            value={email}
+            placeholder={t("setup.emailPlaceholder")}
+            onChange={(e) => setEmail(e.target.value)}
           />
         </Field>
         <div>
